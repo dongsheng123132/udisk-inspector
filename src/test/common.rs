@@ -61,5 +61,5 @@ pub fn verify_test_block(data: &[u8], expected_block: u64) -> BlockVerifyResult 
 }
 
 pub fn should_stop() -> bool {
-    crate::commands::test::STOP_FLAG.load(std::sync::atomic::Ordering::Relaxed)
+    crate::STOP_FLAG.load(std::sync::atomic::Ordering::Relaxed)
 }

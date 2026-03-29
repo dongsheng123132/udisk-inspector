@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection};
 use thiserror::Error;
 
-use crate::commands::report::{ReportDetail, ReportSummary};
+use crate::types::{ReportDetail, ReportSummary};
 
 #[derive(Error, Debug)]
 pub enum DbError {
@@ -17,7 +17,11 @@ pub struct Database {
 
 impl Database {
     pub fn new() -> Result<Self, DbError> {
-        let conn = Connection::open("udisk_reports.db")?;
+        Self::open("udisk_reports.db")
+    }
+
+    pub fn open(path: &str) -> Result<Self, DbError> {
+        let conn = Connection::open(path)?;
         let db = Self { conn };
         db.init_tables()?;
         Ok(db)
