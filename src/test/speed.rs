@@ -35,7 +35,17 @@ where
     F: Fn(f64, &str, f64) + Send,
 {
     let test_file = PathBuf::from(mount_point).join("_udisk_speed_test_.dat");
-    let total_bytes = test_size_mb * 1024 * 1024;
+
+    // Check free space and cap test size accordingly
+    let free_space = super::capacity::fs_free_space(mount_point).unwrap_or(0);
+    let safe_bytes = (free_space as f64 * 0.9) as u64; // Leave 10% margin
+    let total_bytes = (test_size_mb * 1024 * 1024).min(safe_bytes);
+    if total_bytes < CHUNK_SIZE as u64 {
+        return Err(format!(
+            "Not enough free space for speed test (need >= 32MB, have {} MB free)",
+            free_space / (1024 * 1024)
+        ));
+    }
     let num_chunks = (total_bytes as usize + CHUNK_SIZE - 1) / CHUNK_SIZE;
 
     // Generate a reusable data chunk

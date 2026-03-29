@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>U盘批量检测报告</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+  .header { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1a1a2e 100%); border: 1px solid #334155; border-radius: 16px; padding: 40px; margin-bottom: 24px; text-align: center; position: relative; overflow: hidden; }
+  .header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 50%, rgba(59,130,246,0.08) 0%, transparent 50%); }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; position: relative; }
+  .header p { color: #94a3b8; font-size: 14px; position: relative; }
+
+  .alert { background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); border: 1px solid #dc2626; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px; }
+  .alert-icon { font-size: 24px; flex-shrink: 0; }
+  .alert h3 { color: #fca5a5; font-size: 16px; margin-bottom: 4px; }
+  .alert p { color: #fecaca; font-size: 13px; line-height: 1.6; }
+
+  .ranking { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+  .ranking h2 { font-size: 18px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #334155; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 12px; color: #94a3b8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #334155; }
+  td { padding: 12px; border-bottom: 1px solid #1e293b; }
+  tr:hover td { background: rgba(59,130,246,0.05); }
+
+  .rank { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+  .rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #1e293b; }
+  .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); color: #1e293b; }
+  .rank-3 { background: linear-gradient(135deg, #cd7c2f, #a16207); color: #1e293b; }
+  .rank-n { background: #334155; color: #94a3b8; }
+
+  .drive-name { font-weight: 600; color: #f1f5f9; }
+  .drive-path { color: #64748b; font-size: 12px; }
+  .fake-tag { display: inline-block; background: #dc2626; color: white; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
+
+  .speed-bar-container { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; }
+  .speed-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .speed-val { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+  .stability { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .stab-high { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .stab-mid { background: rgba(234,179,8,0.15); color: #facc15; }
+  .stab-low { background: rgba(239,68,68,0.15); color: #f87171; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+  .card h3 { font-size: 15px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+  .card.fake { border-color: #dc2626; }
+
+  .stat-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+  .stat-label { color: #94a3b8; }
+  .stat-value { font-weight: 600; }
+
+  .chart-section { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+  .chart-section h2 { font-size: 18px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #334155; }
+  .chart { width: 100%; height: 350px; }
+
+  .summary { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+  .summary h2 { font-size: 18px; margin-bottom: 12px; }
+  .summary ul { padding-left: 20px; line-height: 2; font-size: 14px; color: #cbd5e1; }
+  .summary li strong { color: #f1f5f9; }
+
+  .footer { text-align: center; color: #475569; font-size: 12px; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>U盘批量质量检测报告</h1>
+  <p>检测日期: 2026-03-29 | 共检测 6 个 USB 设备 | 工具: UDisk Inspector v0.2.0</p>
+</div>
+
+<div class="alert">
+  <div class="alert-icon">&#9888;</div>
+  <div>
+    <h3>发现扩容假盘！</h3>
+    <p><strong>E:</strong> 标称 31.4 GB，实际仅 8.5 GB（27%）。该盘使用了虚假容量芯片，写入超过真实容量的数据将丢失或损坏。<br>建议立即停止使用该设备存储重要数据。</p>
+  </div>
+</div>
+
+<div class="ranking">
+  <h2>性能排名（按顺序写入速度）</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px">排名</th>
+        <th>设备</th>
+        <th>容量</th>
+        <th>文件系统</th>
+        <th>顺序写入</th>
+        <th>顺序读取</th>
+        <th>4K写 IOPS</th>
+        <th>4K读 IOPS</th>
+        <th>稳定性</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="rank rank-1">1</span></td>
+        <td><span class="drive-name">ORICO</span><br><span class="drive-path">I:</span></td>
+        <td>62.9 GB</td>
+        <td>exFAT</td>
+        <td><div class="speed-val" style="color:#4ade80">22.3 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:100%;background:linear-gradient(90deg,#4ade80,#22c55e)"></div></div></td>
+        <td>4131 MB/s</td>
+        <td>12</td>
+        <td>103,961</td>
+        <td><span class="stability stab-mid">良好</span></td>
+      </tr>
+      <tr>
+        <td><span class="rank rank-2">2</span></td>
+        <td><span class="drive-name">F盘</span><br><span class="drive-path">F:</span></td>
+        <td>31.4 GB</td>
+        <td>FAT32</td>
+        <td><div class="speed-val" style="color:#4ade80">20.3 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:91%;background:linear-gradient(90deg,#4ade80,#22c55e)"></div></div></td>
+        <td>3633 MB/s</td>
+        <td>30</td>
+        <td>82,732</td>
+        <td><span class="stability stab-high">89%</span></td>
+      </tr>
+      <tr>
+        <td><span class="rank rank-3">3</span></td>
+        <td><span class="drive-name">J盘</span><br><span class="drive-path">J:</span></td>
+        <td>15.7 GB</td>
+        <td>FAT32</td>
+        <td><div class="speed-val" style="color:#4ade80">18.8 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:84%;background:linear-gradient(90deg,#4ade80,#22c55e)"></div></div></td>
+        <td>3907 MB/s</td>
+        <td>227</td>
+        <td>95,812</td>
+        <td><span class="stability stab-high">91%</span></td>
+      </tr>
+      <tr>
+        <td><span class="rank rank-n">4</span></td>
+        <td><span class="drive-name">UCLAW</span><br><span class="drive-path">G:</span></td>
+        <td>62.9 GB</td>
+        <td>FAT32</td>
+        <td><div class="speed-val" style="color:#facc15">8.5 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:38%;background:linear-gradient(90deg,#facc15,#eab308)"></div></div></td>
+        <td>4168 MB/s</td>
+        <td>23</td>
+        <td>187,192</td>
+        <td><span class="stability stab-high">85%</span></td>
+      </tr>
+      <tr>
+        <td><span class="rank rank-n">5</span></td>
+        <td><span class="drive-name">thinkplus</span><br><span class="drive-path">K:</span></td>
+        <td>62.9 GB</td>
+        <td>FAT32</td>
+        <td><div class="speed-val" style="color:#f87171">4.1 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:18%;background:linear-gradient(90deg,#f87171,#ef4444)"></div></div></td>
+        <td>1645 MB/s</td>
+        <td>129</td>
+        <td>80,511</td>
+        <td><span class="stability stab-mid">81%</span></td>
+      </tr>
+      <tr style="opacity:0.6">
+        <td><span class="rank rank-n">-</span></td>
+        <td><span class="drive-name">E盘</span> <span class="fake-tag">扩容假盘</span><br><span class="drive-path">E:</span></td>
+        <td><s>31.4 GB</s> → 8.5 GB</td>
+        <td>FAT32</td>
+        <td><div class="speed-val" style="color:#f87171">8.2 MB/s</div><div class="speed-bar-container"><div class="speed-bar" style="width:37%;background:#ef4444"></div></div></td>
+        <td>2881 MB/s</td>
+        <td>282</td>
+        <td>107,799</td>
+        <td><span class="stability stab-low">53%</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <h3>&#127941; #1 ORICO (I:)</h3>
+    <div class="stat-row"><span class="stat-label">容量</span><span class="stat-value">62.9 GB (exFAT)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#4ade80">22.3 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">顺序读取</span><span class="stat-value">4131 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机写</span><span class="stat-value" style="color:#f87171">12 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机读</span><span class="stat-value">103,961 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">评价</span><span class="stat-value">大文件传输最快，但小文件写入极差</span></div>
+  </div>
+  <div class="card">
+    <h3>&#129352; #2 F盘 (F:)</h3>
+    <div class="stat-row"><span class="stat-label">容量</span><span class="stat-value">31.4 GB (FAT32)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#4ade80">20.3 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">顺序读取</span><span class="stat-value">3633 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机写</span><span class="stat-value">30 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机读</span><span class="stat-value">82,732 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">评价</span><span class="stat-value">综合均衡，稳定性好</span></div>
+  </div>
+  <div class="card">
+    <h3>&#129353; #3 J盘 (J:)</h3>
+    <div class="stat-row"><span class="stat-label">容量</span><span class="stat-value">15.7 GB (FAT32)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#4ade80">18.8 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">顺序读取</span><span class="stat-value">3907 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机写</span><span class="stat-value">227 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机读</span><span class="stat-value">95,812 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">评价</span><span class="stat-value" style="color:#4ade80">稳定性最佳 91%，最可靠</span></div>
+  </div>
+  <div class="card">
+    <h3>#4 UCLAW (G:)</h3>
+    <div class="stat-row"><span class="stat-label">容量</span><span class="stat-value">62.9 GB (FAT32)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#facc15">8.5 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">顺序读取</span><span class="stat-value">4168 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机写</span><span class="stat-value">23 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机读</span><span class="stat-value" style="color:#4ade80">187,192 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">评价</span><span class="stat-value">写入慢但随机读取最强</span></div>
+  </div>
+  <div class="card">
+    <h3>#5 thinkplus (K:)</h3>
+    <div class="stat-row"><span class="stat-label">容量</span><span class="stat-value">62.9 GB (FAT32)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#f87171">4.1 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">顺序读取</span><span class="stat-value">1645 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机写</span><span class="stat-value">129 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">4K 随机读</span><span class="stat-value">80,511 IOPS</span></div>
+    <div class="stat-row"><span class="stat-label">评价</span><span class="stat-value" style="color:#f87171">写入最慢，64GB盘不该这么慢</span></div>
+  </div>
+  <div class="card fake">
+    <h3 style="color:#fca5a5">&#9888; E盘 (E:) — 扩容假盘</h3>
+    <div class="stat-row"><span class="stat-label">标称容量</span><span class="stat-value" style="text-decoration:line-through">31.4 GB</span></div>
+    <div class="stat-row"><span class="stat-label">真实容量</span><span class="stat-value" style="color:#f87171">8.5 GB (仅 27%)</span></div>
+    <div class="stat-row"><span class="stat-label">顺序写入</span><span class="stat-value" style="color:#f87171">8.2 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">稳定性</span><span class="stat-value" style="color:#f87171">53% — 极不稳定</span></div>
+    <div class="stat-row"><span class="stat-label">写入波动</span><span class="stat-value" style="color:#f87171">1.9 ~ 25 MB/s</span></div>
+    <div class="stat-row"><span class="stat-label">结论</span><span class="stat-value" style="color:#fca5a5">立即停用，数据不可靠</span></div>
+  </div>
+</div>
+
+<div class="chart-section">
+  <h2>顺序写入速度对比</h2>
+  <div id="writeChart" class="chart"></div>
+</div>
+
+<div class="chart-section">
+  <h2>E盘 写入速度波动（扩容盘特征）</h2>
+  <div id="fakeChart" class="chart"></div>
+</div>
+
+<div class="summary">
+  <h2>总结与建议</h2>
+  <ul>
+    <li><strong>E: 是扩容假盘</strong>，标称 31.4GB 实际仅 8.5GB，写入稳定性极差（53%），建议丢弃</li>
+    <li>所有盘的写入速度均为 <strong>USB 2.0 级别（4~22 MB/s）</strong>，没有达到 USB 3.0 应有的 50+ MB/s</li>
+    <li>读取速度普遍很高（1645~4168 MB/s），这是 <strong>OS 读缓存命中</strong>，不代表真实读取速度</li>
+    <li>日常使用推荐：<strong>J盘（稳定性最好 91%）</strong> 或 <strong>ORICO（写入最快 22 MB/s）</strong></li>
+    <li>UCLAW (G:) 和 thinkplus (K:) 虽然都是 64GB，但写入速度偏慢（4~8.5 MB/s），性价比低</li>
+    <li>建议考虑更换为 <strong>USB 3.0/3.1 高速 U 盘</strong>（顺序写应达到 50~150 MB/s）</li>
+  </ul>
+</div>
+
+<div class="footer">
+  Generated by UDisk Inspector v0.2.0 | 2026-03-29
+</div>
+
+</div>
+
+<script>
+// Write speed comparison chart
+var writeChart = echarts.init(document.getElementById('writeChart'));
+writeChart.setOption({
+  backgroundColor: 'transparent',
+  textStyle: { color: '#94a3b8' },
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: ['ORICO\n(I:)', 'F盘\n(F:)', 'J盘\n(J:)', 'UCLAW\n(G:)', 'E盘\n(E:)', 'thinkplus\n(K:)'],
+    axisLine: { lineStyle: { color: '#334155' } },
+    axisLabel: { color: '#94a3b8' }
+  },
+  yAxis: {
+    type: 'value',
+    name: 'MB/s',
+    nameTextStyle: { color: '#94a3b8' },
+    axisLine: { lineStyle: { color: '#334155' } },
+    splitLine: { lineStyle: { color: '#1e293b' } }
+  },
+  series: [{
+    type: 'bar',
+    data: [
+      { value: 22.3, itemStyle: { color: '#22c55e' } },
+      { value: 20.3, itemStyle: { color: '#3b82f6' } },
+      { value: 18.8, itemStyle: { color: '#3b82f6' } },
+      { value: 8.5, itemStyle: { color: '#eab308' } },
+      { value: 8.2, itemStyle: { color: '#ef4444' } },
+      { value: 4.1, itemStyle: { color: '#ef4444' } }
+    ],
+    barWidth: '50%',
+    label: { show: true, position: 'top', formatter: '{c} MB/s', color: '#e2e8f0', fontSize: 12 }
+  }]
+});
+
+// E: fake drive speed fluctuation
+var fakeChart = echarts.init(document.getElementById('fakeChart'));
+fakeChart.setOption({
+  backgroundColor: 'transparent',
+  textStyle: { color: '#94a3b8' },
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['E盘 (假盘)', 'J盘 (正常盘)'], textStyle: { color: '#94a3b8' }, top: 0 },
+  grid: { left: '3%', right: '4%', bottom: '3%', top: '40px', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: ['0 MB', '32 MB', '64 MB', '96 MB', '128 MB', '160 MB', '192 MB', '224 MB'],
+    axisLine: { lineStyle: { color: '#334155' } },
+    name: '偏移量'
+  },
+  yAxis: {
+    type: 'value',
+    name: 'MB/s',
+    nameTextStyle: { color: '#94a3b8' },
+    axisLine: { lineStyle: { color: '#334155' } },
+    splitLine: { lineStyle: { color: '#1e293b' } }
+  },
+  series: [
+    {
+      name: 'E盘 (假盘)',
+      type: 'line',
+      data: [1.9, 10.5, 25.1, 12.9, 17.1, 24.8, 12.8, 17.1],
+      smooth: true,
+      lineStyle: { color: '#ef4444', width: 3 },
+      itemStyle: { color: '#ef4444' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(239,68,68,0.3)' }, { offset: 1, color: 'rgba(239,68,68,0.02)' }] } },
+      markLine: { data: [{ type: 'average', name: '平均', lineStyle: { color: '#ef4444', type: 'dashed' } }], label: { color: '#f87171' } }
+    },
+    {
+      name: 'J盘 (正常盘)',
+      type: 'line',
+      data: [17.0, 17.9, 21.3, 19.6, null, null, null, null],
+      smooth: true,
+      lineStyle: { color: '#3b82f6', width: 3 },
+      itemStyle: { color: '#3b82f6' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.2)' }, { offset: 1, color: 'rgba(59,130,246,0.02)' }] } },
+      markLine: { data: [{ type: 'average', name: '平均', lineStyle: { color: '#3b82f6', type: 'dashed' } }], label: { color: '#60a5fa' } }
+    }
+  ]
+});
+
+window.addEventListener('resize', function() {
+  writeChart.resize();
+  fakeChart.resize();
+});
+</script>
+</body>
+</html>

@@ -247,6 +247,7 @@ async fn cmd_test(
 
     let drive_name = drive_info.name.clone();
     let claimed_capacity = drive_info.capacity_bytes;
+    let mount_point = drive_info.mount_point.clone();
 
     if let OutputMode::Human = mode {
         println!(
@@ -270,7 +271,7 @@ async fn cmd_test(
 
     // Capacity test
     if test_capacity {
-        let mount_c = mount.to_string();
+        let mount_c = mount_point.clone();
         let pb = make_progress_bar(mode, "Capacity test");
 
         let result = tokio::task::spawn_blocking(move || {
@@ -301,7 +302,7 @@ async fn cmd_test(
 
     // Speed test
     if test_speed && !STOP_FLAG.load(Ordering::Relaxed) {
-        let mount_c = mount.to_string();
+        let mount_c = mount_point.clone();
         let pb = make_progress_bar(mode, "Speed test");
 
         let result = tokio::task::spawn_blocking(move || {
@@ -356,7 +357,7 @@ async fn cmd_test(
 
     // Bad block test
     if test_badblock && !STOP_FLAG.load(Ordering::Relaxed) {
-        let mount_c = mount.to_string();
+        let mount_c = mount_point.clone();
         let pb = make_progress_bar(mode, "Bad block test");
 
         let result = tokio::task::spawn_blocking(move || {
@@ -386,7 +387,7 @@ async fn cmd_test(
     // Thermal test
     if let Some(secs) = test_thermal {
         if !STOP_FLAG.load(Ordering::Relaxed) {
-            let mount_c = mount.to_string();
+            let mount_c = mount_point.clone();
             let pb = make_progress_bar(mode, "Thermal test");
 
             let result = tokio::task::spawn_blocking(move || {

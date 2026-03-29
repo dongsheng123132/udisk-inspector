@@ -34,7 +34,7 @@ where
         return Err("No free space available for testing".to_string());
     }
 
-    // Phase 1: Write
+    // Phase 1: Write (stop on disk full instead of returning error)
     progress_cb(0.0, "开始写入测试数据...", 0.0);
     let mut written_blocks = 0u64;
 
@@ -48,13 +48,18 @@ where
         let file_path = test_dir.join(format!("block_{:06}.dat", i));
 
         let start = Instant::now();
-        let mut file = fs::File::create(&file_path)
-            .map_err(|e| format!("Write error at block {}: {}", i, e))?;
-        file.write_all(&block_data)
-            .map_err(|e| format!("Write error at block {}: {}", i, e))?;
-        file.sync_all()
-            .map_err(|e| format!("Sync error at block {}: {}", i, e))?;
-        drop(file);
+        let write_ok = (|| -> Result<(), std::io::Error> {
+            let mut file = fs::File::create(&file_path)?;
+            file.write_all(&block_data)?;
+            file.sync_all()?;
+            Ok(())
+        })();
+
+        if let Err(e) = write_ok {
+            log::warn!("Write stopped at block {}: {} (disk full?)", i, e);
+            let _ = fs::remove_file(&file_path);
+            break;
+        }
 
         let elapsed = start.elapsed().as_secs_f64();
         let speed = if elapsed > 0.0 {
@@ -70,6 +75,11 @@ where
             &format!("写入块 {}/{}", written_blocks, num_blocks),
             speed,
         );
+    }
+
+    if written_blocks == 0 {
+        cleanup_test_files(&test_dir);
+        return Err("Could not write any test blocks".to_string());
     }
 
     // Phase 2: Verify
