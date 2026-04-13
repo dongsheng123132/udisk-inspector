@@ -18,3 +18,7 @@ Thumbs.db
 # Screenshots / temp
 shot_*.png
 screenshot*.png
+
+# Claude workspace
+.claude/
+CLAUDE.md
